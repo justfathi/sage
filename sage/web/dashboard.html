@@ -157,6 +157,11 @@
   .ptitle { position:absolute; top: 22px; left: 26px; display:flex; align-items:baseline; gap:12px; z-index: 5; }
   .ptitle .t { font-size: 16px; font-weight: 600; letter-spacing: 4px; text-transform: uppercase; color: var(--ink); }
   .ptitle .d { font-family:'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 1.5px; color: var(--faint); }
+  .deps-toggle { margin-left: 16px; padding: 5px 12px; border-radius: 8px; cursor: pointer;
+    font-family:'JetBrains Mono', monospace; font-size: 11px; letter-spacing: .5px;
+    color: var(--muted); background: var(--panel); border: 1px solid var(--panel-edge); }
+  .deps-toggle:hover { color: var(--ink); }
+  .deps-toggle.on { color: #0a0618; background: var(--violet-c); border-color: var(--violet-c); }
 
   .gv-stage { position: absolute; left: 24px; top: 84px; width: 1064px; height: 700px; }
 
@@ -188,6 +193,12 @@
     transition: opacity .5s ease; animation: flow 1.1s linear infinite;
     filter: drop-shadow(0 0 4px currentColor); }
   .link.on { opacity: 0.85; }
+  /* dependency edges: solid, calm, with a flowing dash toward the dependent */
+  #deps { z-index: 1; opacity: 0; transition: opacity .4s ease; }
+  #deps.show { opacity: 1; }
+  .dep { fill:none; stroke: var(--ink); stroke-width: 1.4; opacity: .32;
+    stroke-dasharray: 4 6; animation: flow 1.6s linear infinite; }
+  .dep-dot { fill: var(--ink); opacity: .5; }
 
   .core { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); z-index: 6;
     width: 132px; height: 132px; }
@@ -349,8 +360,11 @@
       </header>
 
       <section class="godview">
-        <div class="ptitle"><span class="t">Agent Mesh</span><span class="d">// live from activity log</span></div>
+        <div class="ptitle"><span class="t">Agent Mesh</span><span class="d">// live from activity log</span>
+          <button id="depsToggle" class="deps-toggle">Show dependencies</button>
+        </div>
         <div class="gv-stage" id="stage">
+          <svg class="links" id="deps" viewBox="0 0 1064 804" preserveAspectRatio="none"></svg>
           <svg class="links" id="links" viewBox="0 0 1064 804" preserveAspectRatio="none"></svg>
           <div class="core" id="core">
             <div class="halo"></div>
@@ -440,10 +454,39 @@
   const slots = SLOT_DEF.map(([a,r])=>{ const t=a*Math.PI/180; return {x:CX+r*Math.sin(t), y:CY-r*Math.cos(t), busy:false}; });
 
   const stage=document.getElementById('stage'), linksSvg=document.getElementById('links');
+  const depsSvg=document.getElementById('deps');
   const coreRing=document.getElementById('coreRing');
   const el=id=>document.getElementById(id);
 
   const agents = {};   // role -> {node, slot, link}
+  let showDeps = false;
+
+  // Draw depends_on edges between currently-live agent nodes.
+  function drawDeps(){
+    depsSvg.innerHTML='';
+    depsSvg.classList.toggle('show', showDeps);
+    if(!showDeps) return;
+    const NS='http://www.w3.org/2000/svg';
+    for(const role in agents){
+      const spec=charters[role]; if(!spec || !spec.depends_on) continue;
+      const to=slots[agents[role].slot];
+      for(const dep of spec.depends_on){
+        if(!agents[dep]) continue;
+        const from=slots[agents[dep].slot];
+        // curve bowed toward the core for a calmer, organic look
+        const mx=(from.x+to.x)/2, my=(from.y+to.y)/2;
+        const cx2=mx+(CX-mx)*0.4, cy2=my+(CY-my)*0.4;
+        const path=document.createElementNS(NS,'path');
+        path.setAttribute('d',`M ${from.x} ${from.y} Q ${cx2} ${cy2} ${to.x} ${to.y}`);
+        path.setAttribute('class','dep');
+        depsSvg.appendChild(path);
+        const dot=document.createElementNS(NS,'circle');
+        dot.setAttribute('cx',to.x); dot.setAttribute('cy',to.y);
+        dot.setAttribute('r','3'); dot.setAttribute('class','dep-dot');
+        depsSvg.appendChild(dot);
+      }
+    }
+  }
   let roles=new Set(), doneCount=0, cycle=0;
 
   function freeSlot(){ return slots.findIndex(s=>!s.busy); }
@@ -481,6 +524,7 @@
     if(!instant){ coreRing.classList.add('busy'); setTimeout(()=>coreRing.classList.remove('busy'),500); }
     agents[role]={node:a, slot:si, link, c, g};
     if(!instant) setTimeout(()=>a.classList.remove('spawning','forming'),700);
+    if(showDeps) drawDeps();
   }
 
   function agentWorking(role, instant){
@@ -734,6 +778,7 @@
     el('st-roles').textContent=0; el('st-cycle').textContent=0;
     el('feedList').innerHTML=''; el('feedCt').textContent=0;
     setRoster();
+    drawDeps();
   }
   function rebuildTo(n){
     clearAll();
@@ -743,6 +788,7 @@
     el('tlNow').textContent = cur ? `${cur.actor||''}  ${cur.summary||''}` : '(start)';
     const scrub=el('tlScrub'); scrub.value=n;
     scrub.style.setProperty('--pct', (EVENTS.length? (n/EVENTS.length*100):0)+'%');
+    drawDeps();
   }
   function refreshScrub(){
     const scrub=el('tlScrub');
@@ -776,6 +822,12 @@
   }
 
   // -------- timeline controls --------
+  el('depsToggle').addEventListener('click', ()=>{
+    showDeps=!showDeps;
+    el('depsToggle').classList.toggle('on', showDeps);
+    el('depsToggle').textContent = showDeps ? 'Hide dependencies' : 'Show dependencies';
+    drawDeps();
+  });
   el('tlReplay').addEventListener('click', ()=> setReplay(!replay));
   el('tlPlay').addEventListener('click', ()=> playTimer ? stopPlay() : startPlay());
   el('tlStepB').addEventListener('click', ()=>{ if(!replay) setReplay(true); stopPlay(); rebuildTo(Math.max(0,(+el('tlScrub').value)-1)); });

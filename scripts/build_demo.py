@@ -54,7 +54,8 @@ def trim(events: list) -> list:
         if "output" in p:
             p["output"] = str(p["output"])[:200]
         if "specs" in p:
-            keep = ("role", "purpose", "tools", "success_criteria", "methodology")
+            keep = ("role", "purpose", "tools", "success_criteria",
+                    "methodology", "depends_on")
             p["specs"] = [{k: s.get(k) for k in keep} for s in p["specs"]]
     return events
 
