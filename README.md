@@ -10,6 +10,10 @@
 ![Status: Concept](https://img.shields.io/badge/status-early%20concept-orange)
 ![Model-agnostic](https://img.shields.io/badge/models-agnostic-7c3aed)
 
+### ▶ [Watch the live demo](https://justfathi.github.io/sage/)
+
+*A real SAGE run, replayed in your browser — agents spawning, a discovered role growing, the Gardener pruning. No install.*
+
 </div>
 
 ---

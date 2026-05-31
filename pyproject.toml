@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sage-engine"
+version = "0.1.0"
+description = "Self-Architecting Genesis Engine — feed it your company, it grows its own team of AI agents."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "AGPL-3.0-or-later" }
+authors = [{ name = "Fathi Abdoon" }]
+keywords = ["agents", "orchestration", "llm", "claude", "ai", "autonomous"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+]
+# Core runs offline with zero dependencies (mock provider + stdlib sqlite3).
+dependencies = []
+
+[project.optional-dependencies]
+claude = ["anthropic>=0.40"]
+dev = ["pytest>=7"]
+
+[project.scripts]
+sage = "sage.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/fathiabdoon/SAGE"
+
+[tool.setuptools.packages.find]
+include = ["sage*"]
+
+[tool.setuptools.package-data]
+sage = ["web/*.html"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

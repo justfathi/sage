@@ -1,0 +1,3 @@
+# SAGE runs offline with zero dependencies (mock provider + stdlib sqlite3).
+# Install the Anthropic SDK only to use the real Claude provider.
+anthropic>=0.40 ; extra == "claude"

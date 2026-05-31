@@ -9,6 +9,7 @@
 3. **Agent creation is a phase, not a prerequisite.** SAGE's first job on any goal is to design the team.
 4. **Closed feedback loop from day one.** Agents don't just execute — they report learnings that re-shape the knowledge base and future agents.
 5. **Persistence over ephemerality.** Agents are entities with memory, specs, and performance history — not throwaway prompt calls.
+6. **Stand on substrates, don't rebuild them.** SAGE owns the *architect's chair*, not the engine room. Orchestration plumbing and proven methodologies (BMAD, CrewAI, etc.) are borrowed and plugged in — never reinvented. SAGE is the thin intelligent layer that decides *which* to deploy and *how*.
 
 ## The four layers
 
@@ -47,6 +48,7 @@ The brain. One primary orchestrator agent — "SAGE Core."
 - Decomposes a goal into the **roles** required
 - Emits **agent specs**: role, purpose, context to load, tools, success criteria
 - Designs lean, narrowly-scoped agents (one job each) rather than monoliths
+- **Recognizes the goal's shape and reaches for a known methodology** from the playbook (e.g. BMAD for software delivery) instead of designing from scratch
 - Discovers **new role archetypes** the situation demands — including non-human-shaped ones
 - (Stretch) simulates agent interaction, predicts failure points, pre-emptively designs bridging agents
 
@@ -67,6 +69,38 @@ Closes the loop.
 - The knowledge base is updated
 - The orchestrator re-architects: refine, retire, or spawn agents
 - Over time SAGE builds an evolving org chart and a library of discovered archetypes
+
+## Methodologies & substrates (the playbook)
+
+SAGE does **not** hardcode any single way of working. It holds a **playbook** of known methodologies and orchestration substrates it can reach for. Each entry is a pluggable crew + workflow, tagged by the kind of goal it fits.
+
+**BMAD-METHOD is the canonical example.** BMAD is an open framework that ships a fixed agile-software crew (Analyst → PM → Architect → SM → Dev → QA) and a context-engineered workflow (detailed PRDs + hyper-detailed story files). It's exactly the kind of proven, opinionated crew SAGE should *use*, not rebuild.
+
+The playbook holds two tiers:
+
+- **Methodologies** — opinionated crews + workflows, tagged by goal type. Examples: **BMAD** and **MetaGPT** (both software-delivery; MetaGPT simulates a software company turning a one-line request into PRD → design → code).
+- **Substrates** — the orchestration plumbing methodologies run on. Examples: **CrewAI**, **AutoGen**, **LangGraph**. SAGE builds *on* these, never rebuilds them.
+
+Where no methodology fits the goal, SAGE designs one from scratch.
+
+How it plugs in:
+
+```
+ingest goal ─▶ Architect recognizes the shape ("build an app")
+            ─▶ pulls BMAD crew from the playbook
+            ─▶ seeds it with THIS company's context
+            ─▶ grows extra roles BMAD lacks
+            ─▶ runs the learning loop on top
+```
+
+Key boundaries:
+
+- **BMAD is not hardwired.** It's one entry in a pluggable registry. A non-software goal pulls a different methodology — or none, and SAGE designs from scratch.
+- **SAGE adapts and extends, never just adopts.** It seeds the borrowed crew with the company's own knowledge and adds roles the methodology doesn't cover (a domain-compliance bridge, the Gardener, etc.).
+- **Improvements come for free.** When BMAD (or any substrate) improves upstream, SAGE inherits it — same logic as the model-agnostic boundary.
+- **Positioning guard:** SAGE is *not* "an agile AI dev team" — that's BMAD's lane. SAGE is the meta-layer: *ingest context → choose/adapt a methodology → discover new roles → learn.*
+
+> Philosophically, SAGE and BMAD share the same bet — **rich context makes agents work.** BMAD hand-builds that pipeline for software; SAGE generalizes it to any domain and designs the roster too. Same belief, one level up.
 
 ## Agent memory
 

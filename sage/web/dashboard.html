@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SAGE -- Orchestration God View</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    /* Default: Midnight (higher-contrast than before for readability) */
+    --bg: #0a0816; --bg-deep: #050410;
+    --ink: #f4f1ff; --muted: #b4afd0; --faint: #847ea8;
+    --line: rgba(160,145,255,0.16); --panel: rgba(124,92,237,0.05);
+    --panel-edge: rgba(160,145,255,0.16);
+    --glow1: rgba(124,58,237,0.16); --glow2: rgba(224,130,10,0.08);
+    --violet-c: #c8adff; --violet-g: #7c3aed;
+    --emerald-c: #6df2b6; --emerald-g: #10b981;
+    --sapphire-c: #7cbaff; --sapphire-g: #2563eb;
+    --rose-c: #ff97b7; --rose-g: #e11d6b;
+    --teal-c: #64e8df; --teal-g: #0ea5a0;
+    --amber-c: #ffd58f; --amber-g: #e0820a;
+  }
+  /* ---- Contrast: maximum readability, calm slate ---- */
+  html[data-theme="contrast"] {
+    --bg: #11141c; --bg-deep: #0a0c12;
+    --ink: #ffffff; --muted: #c5cad6; --faint: #8b94a6;
+    --line: rgba(255,255,255,0.14); --panel: rgba(255,255,255,0.04);
+    --panel-edge: rgba(255,255,255,0.16);
+    --glow1: rgba(90,120,255,0.10); --glow2: rgba(0,0,0,0);
+    --violet-c: #b7a6ff; --violet-g: #6d5cff;
+  }
+  /* ---- Daylight: light mode ---- */
+  html[data-theme="light"] {
+    --bg: #f4f2fb; --bg-deep: #e9e6f5;
+    --ink: #1c1830; --muted: #4a4566; --faint: #7b7596;
+    --line: rgba(90,70,160,0.18); --panel: rgba(124,92,237,0.06);
+    --panel-edge: rgba(90,70,160,0.20);
+    --glow1: rgba(124,58,237,0.10); --glow2: rgba(224,130,10,0.07);
+    --violet-c: #6d28d9; --violet-g: #7c3aed;
+    --emerald-c: #059669; --sapphire-c: #1d4ed8;
+    --rose-c: #be185d; --teal-c: #0d9488; --amber-c: #b45309;
+  }
+  /* ---- Forest: green-on-deep, easy on the eyes ---- */
+  html[data-theme="forest"] {
+    --bg: #07120e; --bg-deep: #040b09;
+    --ink: #eafff4; --muted: #a7d8c4; --faint: #6f9c8a;
+    --line: rgba(110,242,182,0.14); --panel: rgba(16,185,129,0.05);
+    --panel-edge: rgba(110,242,182,0.16);
+    --glow1: rgba(16,185,129,0.14); --glow2: rgba(13,148,136,0.08);
+    --violet-c: #6df2b6; --violet-g: #10b981;
+  }
+  html, body { width: 100%; height: 100%; background: var(--bg-deep); overflow: hidden; }
+  body { font-family: 'Space Grotesk', sans-serif; }
+  #scaler { position: fixed; top: 0; left: 0; transform-origin: top left; }
+  /* Theme changes ease rather than snap. */
+  #frame, .godview, .side, .roster, .charter, .feed, .ev, .rrow, .timeline,
+  .modal-card, .goal-input input, .themepick, .pausebtn, .tl-btn, .tl-scrub,
+  .brand-name, .stat .v, .ptitle .t, .agent .alabel {
+    transition: background-color .5s ease, color .5s ease, border-color .5s ease, box-shadow .5s ease;
+  }
+  #frame {
+    position: relative; width: 1920px; height: 1080px;
+    background:
+      radial-gradient(120% 90% at 50% -10%, var(--glow1), transparent 55%),
+      radial-gradient(90% 70% at 50% 120%, var(--glow2), transparent 60%),
+      var(--bg);
+    overflow: hidden; color: var(--ink);
+  }
+  #frame::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background-image: radial-gradient(rgba(150,130,255,0.05) 1px, transparent 1px);
+    background-size: 46px 46px; mask-image: radial-gradient(120% 100% at 50% 40%, #000 40%, transparent 90%);
+  }
+  #vignette { position:absolute; inset:0; pointer-events:none; z-index:55;
+    background: radial-gradient(120% 110% at 50% 46%, transparent 60%, rgba(2,0,8,0.55) 100%); }
+
+  .head { position: absolute; top: 0; left: 0; right: 0; height: 104px;
+    display: flex; align-items: center; padding: 0 44px; gap: 28px;
+    border-bottom: 1px solid var(--line); z-index: 20; }
+  .brand { display: flex; align-items: center; gap: 16px; }
+  .brand-ring { width: 46px; height: 46px; border-radius: 50%; position: relative;
+    border: 2px solid var(--violet-c);
+    box-shadow: 0 0 18px rgba(124,58,237,0.6), inset 0 0 14px rgba(124,58,237,0.35);
+    display: grid; place-items: center; }
+  .brand-ring::after { content:""; width: 8px; height: 8px; border-radius:50%; background: var(--violet-c);
+    box-shadow: 0 0 12px var(--violet-c); animation: corepulse 3.2s ease-in-out infinite; }
+  .brand-name { font-family: 'Cinzel', serif; font-weight: 600; font-size: 30px; letter-spacing: 6px; color: #f4eeff; }
+  .brand-sub { font-family:'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 3px; color: var(--faint);
+    text-transform: uppercase; margin-top: 3px; }
+  .goal { margin-left: 30px; max-width: 520px; }
+  .goal .gk { font-size: 11.5px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
+  .goal-input { display:flex; gap: 8px; margin-top: 5px; }
+  .goal-input input { width: 360px; padding: 8px 12px; border-radius: 9px; font-family:'Space Grotesk';
+    font-size: 14px; color: var(--ink); background: var(--panel); border: 1px solid var(--panel-edge); }
+  .goal-input input:focus { outline:none; border-color: var(--violet-c); }
+  .goal-input input:disabled { opacity: .5; }
+  .goal-input button { padding: 8px 18px; border-radius: 9px; border:none; cursor:pointer;
+    font-family:'Space Grotesk'; font-size: 14px; font-weight: 600; color:#0a0618; background: var(--violet-c);
+    box-shadow: 0 0 16px var(--violet-g); transition: filter .15s ease; }
+  .goal-input button:hover { filter: brightness(1.12); }
+  .goal-input button:disabled { opacity: .5; cursor: not-allowed; box-shadow:none; }
+  #docsBtn { background: var(--panel); color: var(--ink); border:1px solid var(--panel-edge); box-shadow:none; }
+
+  .modal { position: fixed; inset: 0; z-index: 100; display:grid; place-items:center;
+    background: rgba(2,1,8,0.72); opacity: 1; transition: opacity .28s ease; }
+  .modal.hidden { opacity: 0; pointer-events: none; }
+  .modal-card { width: 640px; max-width: 90vw; background: var(--bg); border:1px solid var(--panel-edge);
+    border-radius: 16px; padding: 26px 28px; box-shadow: 0 20px 80px rgba(0,0,0,0.6);
+    transform: translateY(0) scale(1); transition: transform .28s cubic-bezier(.2,.8,.25,1); }
+  .modal.hidden .modal-card { transform: translateY(16px) scale(.96); }
+  .modal-head { font-size: 20px; font-weight: 700; color: var(--ink); }
+  .modal-sub { font-size: 14px; color: var(--muted); margin: 8px 0 18px; }
+  .modal-card input, .modal-card textarea { width:100%; padding: 11px 14px; border-radius: 10px;
+    background: var(--panel); border:1px solid var(--panel-edge); color: var(--ink);
+    font-family:'Space Grotesk'; font-size: 14px; margin-bottom: 12px; }
+  .modal-card textarea { min-height: 220px; resize: vertical; font-family:'JetBrains Mono', monospace; font-size: 13px; line-height:1.5; }
+  .modal-card input:focus, .modal-card textarea:focus { outline:none; border-color: var(--violet-c); }
+  .modal-row { display:flex; align-items:center; gap: 12px; }
+  .modal-msg { flex:1; font-size: 13px; color: var(--muted); }
+  .modal-row button { padding: 10px 22px; border-radius: 10px; border:none; cursor:pointer;
+    font-family:'Space Grotesk'; font-size: 14px; font-weight: 600; color:#0a0618; background: var(--violet-c); }
+  .modal-row button:hover { filter: brightness(1.12); }
+  .modal-ghost { background: var(--panel) !important; color: var(--ink) !important; border:1px solid var(--panel-edge) !important; }
+  .goal .gv { font-size: 15px; color: #d8d2ff; margin-top: 4px; line-height: 1.3;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .live { margin-left: auto; display:flex; align-items:center; gap: 30px; }
+  .stat { text-align: right; }
+  .stat .v { font-family:'JetBrains Mono', monospace; font-size: 26px; font-weight: 600; color: var(--ink); line-height: 1; }
+  .stat .k { font-size: 11.5px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-top: 7px; }
+  .livedot { display:inline-flex; align-items:center; gap:8px; font-family:'JetBrains Mono', monospace;
+    font-size:11px; letter-spacing:2px; color:#6df2b6; text-transform:uppercase; }
+  .livedot::before { content:""; width:8px; height:8px; border-radius:50%; background:#6df2b6;
+    box-shadow:0 0 10px #10b981; animation: blink 1.6s steps(1) infinite; }
+  .livedot.paused { color: var(--amber-c); }
+  .livedot.paused::before { background: var(--amber-c); box-shadow: 0 0 10px var(--amber-g); }
+
+  .pausebtn { margin-left: 26px; padding: 12px 26px; border-radius: 11px; cursor: pointer;
+    font-family:'Space Grotesk'; font-size: 14px; font-weight: 600; letter-spacing: 1px;
+    color: #0a0618; background: var(--amber-c); border: none;
+    box-shadow: 0 0 22px rgba(224,130,10,0.5); transition: transform .12s ease, filter .2s ease; }
+  .pausebtn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+  .pausebtn.resumed { background: var(--emerald-c); box-shadow: 0 0 22px rgba(16,185,129,0.5); }
+  .themepick { margin-left: 22px; padding: 10px 14px; border-radius: 10px; cursor: pointer;
+    font-family:'Space Grotesk'; font-size: 13px; font-weight: 500;
+    color: var(--ink); background: var(--panel); border: 1px solid var(--panel-edge); }
+  .themepick:focus { outline: none; border-color: var(--violet-c); }
+  .themepick option { background: var(--bg-deep); color: var(--ink); }
+
+  .godview { position: absolute; left: 40px; top: 128px; width: 1112px; height: 912px;
+    border: 1px solid var(--panel-edge); border-radius: 18px; background: var(--panel); overflow: hidden; }
+  .side { position: absolute; left: 1176px; top: 128px; width: 704px; height: 912px;
+    border: 1px solid var(--panel-edge); border-radius: 18px; background: var(--panel);
+    display: flex; flex-direction: column; }
+  .ptitle { position:absolute; top: 22px; left: 26px; display:flex; align-items:baseline; gap:12px; z-index: 5; }
+  .ptitle .t { font-size: 16px; font-weight: 600; letter-spacing: 4px; text-transform: uppercase; color: var(--ink); }
+  .ptitle .d { font-family:'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 1.5px; color: var(--faint); }
+
+  .gv-stage { position: absolute; left: 24px; top: 84px; width: 1064px; height: 700px; }
+
+  /* timeline / replay bar */
+  .timeline { position: absolute; left: 24px; right: 24px; bottom: 22px; height: 96px;
+    border-top: 1px solid var(--line); padding-top: 16px;
+    display: flex; flex-direction: column; gap: 12px; }
+  .tl-row { display: flex; align-items: center; gap: 16px; }
+  .tl-btn { width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--panel-edge);
+    background: rgba(124,92,237,0.10); color: var(--violet-c); font-size: 16px; cursor: pointer;
+    display: grid; place-items: center; transition: filter .15s ease, background .15s ease; }
+  .tl-btn:hover { filter: brightness(1.3); background: rgba(124,92,237,0.22); }
+  .tl-btn.active { background: var(--violet-c); color: #0a0618; box-shadow: 0 0 16px var(--violet-g); }
+  .tl-scrub { -webkit-appearance:none; appearance:none; flex:1; height:6px; border-radius:4px;
+    background: linear-gradient(90deg, var(--violet-g) 0%, var(--violet-g) var(--pct,0%), #221c3a var(--pct,0%));
+    outline:none; cursor:pointer; }
+  .tl-scrub::-webkit-slider-thumb { -webkit-appearance:none; width:18px; height:18px; border-radius:50%;
+    background: radial-gradient(circle at 40% 35%, #fff, var(--violet-c)); box-shadow:0 0 12px var(--violet-g); border:none; }
+  .tl-scrub::-moz-range-thumb { width:18px; height:18px; border-radius:50%; background:var(--violet-c); border:none; box-shadow:0 0 12px var(--violet-g); }
+  .tl-meta { display:flex; align-items:center; gap: 14px; font-family:'JetBrains Mono', monospace;
+    font-size: 13px; color: var(--muted); }
+  .tl-pos { color: var(--violet-c); min-width: 98px; }
+  .tl-now { font-size: 14px; color: var(--ink); flex:1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tl-mode { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; padding: 4px 10px;
+    border-radius: 20px; border: 1px solid var(--panel-edge); color: var(--faint); }
+  .tl-mode.replay { color: var(--amber-c); border-color: var(--amber-g); }
+  .links { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .link { stroke-width: 1.6; fill: none; stroke-dasharray: 5 9; opacity: 0;
+    transition: opacity .5s ease; animation: flow 1.1s linear infinite;
+    filter: drop-shadow(0 0 4px currentColor); }
+  .link.on { opacity: 0.85; }
+
+  .core { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); z-index: 6;
+    width: 132px; height: 132px; }
+  .core .halo { position:absolute; inset:-40px; border-radius:50%;
+    background: radial-gradient(circle, rgba(124,58,237,0.32), transparent 68%); animation: corepulse 3.4s ease-in-out infinite; }
+  .core .ring { position:absolute; inset:0; border-radius:50%; border: 2.5px solid var(--violet-c);
+    box-shadow: 0 0 28px rgba(124,58,237,0.55), inset 0 0 22px rgba(124,58,237,0.3);
+    background: radial-gradient(circle at 50% 45%, rgba(124,58,237,0.18), rgba(8,5,22,0.66)); display:grid; place-items:center; }
+  .core .ring.busy { animation: dispatch 0.5s ease; }
+  .core .wm { font-family:'Cinzel', serif; font-weight:600; font-size: 24px; letter-spacing: 5px; color:#f4eeff; }
+  .core .orbit { position:absolute; inset:-13px; border-radius:50%; border:1px dashed rgba(150,130,255,0.22);
+    animation: spin 26s linear infinite; }
+
+  .agent { position: absolute; transform: translate(-50%,-50%); z-index: 7;
+    display: flex; flex-direction: column; align-items: center; width: 180px;
+    animation: agentIn .85s cubic-bezier(.22,.61,.36,1) both; }
+  .agent.out { animation: agentOut .45s ease forwards; }
+  .agent.static { animation: none; }
+  .agent.static .node .orb { animation: none; }
+  .ev.no-anim { animation: none; }
+  .agent.done .node .orb { background: radial-gradient(circle at 50% 40%, #eafff5, var(--emerald-c));
+    box-shadow: 0 0 26px var(--emerald-g), 0 0 46px rgba(16,185,129,0.4); }
+  .agent.dead .node .orb { filter: grayscale(1) brightness(.5); }
+  .agent.retraining .node .orb { animation: corepulse 1.4s ease-in-out infinite; }
+  .node { position: relative; width: 76px; height: 76px; }
+  .node .pring { position:absolute; inset:0; transform: rotate(-90deg); }
+  .node .ptrack { fill:none; stroke: rgba(150,130,255,0.13); stroke-width: 3; }
+  .node .pbar { fill:none; stroke: var(--c, #c8adff); stroke-width: 3; stroke-linecap: round;
+    stroke-dasharray: 207; stroke-dashoffset: 207; filter: drop-shadow(0 0 5px var(--g)); }
+  .node .orb { position: absolute; inset: 16px; border-radius: 50%;
+    background: radial-gradient(circle at 50% 38%, #fff, var(--c, #c8adff));
+    box-shadow: 0 0 22px var(--g, #7c3aed); }
+  .node .orb::after { content:""; position:absolute; inset:0; border-radius:50%;
+    background: radial-gradient(circle at 50% 40%, rgba(255,255,255,0.9), transparent 42%); opacity:.7; }
+  .agent.spawning .node .orb { animation: spawnflash 1s ease both; }
+  .agent .alabel { margin-top: 12px; font-size: 17px; font-weight: 600; color: var(--ink);
+    letter-spacing: .3px; white-space: nowrap; text-shadow: 0 0 12px rgba(0,0,0,0.6); }
+  .agent .arole { font-family:'JetBrains Mono', monospace; font-size: 12.5px; letter-spacing: 1px;
+    color: var(--muted); margin-top: 4px; text-transform: uppercase; max-width: 170px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+  .agent.forming .node .pring { display:none; }
+  .agent.forming .node .orb { background: transparent; box-shadow: none; border: 2px dashed var(--c); animation: formspin 3s linear infinite; }
+  .agent.forming .node .orb::after { opacity: 0; }
+  .agent.forming .alabel { color: var(--c); }
+  .badge-new { position:absolute; top:-12px; left:50%; transform: translateX(-50%); white-space:nowrap;
+    font-family:'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
+    color:#0a0618; background: var(--c); padding: 4px 10px; border-radius: 20px; box-shadow: 0 0 16px var(--g);
+    animation: popnew .5s ease backwards; }
+
+  /* side panel: feed + roster */
+  .side-inner { padding: 70px 24px 22px; display:flex; flex-direction: column; height: 100%; gap: 18px; }
+  .roster { border:1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .roster h4, .feed h4 { font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted);
+    margin-bottom: 12px; display:flex; align-items:center; gap:8px; }
+  .roster h4 .ct, .feed h4 .ct { margin-left:auto; font-family:'JetBrains Mono', monospace; color: var(--faint); }
+  .rrow { display:flex; align-items:center; gap: 11px; padding: 9px 0; border-bottom: 1px solid rgba(150,130,255,0.06); }
+  .rrow:last-child { border-bottom: none; }
+  .rdot { width: 10px; height: 10px; border-radius: 50%; background: var(--c, #8a85ad);
+    box-shadow: 0 0 10px var(--g, transparent); flex: none; }
+  .rrow .rn { font-size: 15.5px; color: var(--ink); font-weight: 500; }
+  .rrow .rs { margin-left:auto; font-family:'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--muted); }
+  .rrow.dead .rn { color: var(--faint); text-decoration: line-through; }
+  .rrow.dead .rs { color: var(--rose-c); }
+  .rrow.retraining .rs { color: var(--amber-c); }
+  .rrow.alive .rs { color: var(--emerald-c); }
+
+  .charter { border:1px solid var(--panel-edge); border-radius: 12px; padding: 14px 16px;
+    background: var(--panel); }
+  .charter h4 { font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted);
+    margin-bottom: 12px; display:flex; align-items:center; gap:8px; }
+  .charter h4 .chint { margin-left:auto; font-family:'JetBrains Mono', monospace; font-size: 11px;
+    text-transform: none; letter-spacing: 0; color: var(--faint); }
+  .charter-empty { font-size: 13px; color: var(--faint); line-height: 1.5; font-style: italic; }
+  .charter-head { display:flex; align-items:center; gap: 11px; margin-bottom: 12px; }
+  .charter-head .cdot { width: 13px; height: 13px; border-radius: 50%; background: var(--c,#8a85ad);
+    box-shadow: 0 0 12px var(--g, transparent); flex:none; }
+  .charter-head .cname { font-size: 18px; font-weight: 700; color: var(--ink); }
+  .charter-head .cmeth { margin-left:auto; font-family:'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--violet-c); border:1px solid var(--panel-edge); padding: 3px 9px; border-radius: 14px; }
+  .charter-field { margin-bottom: 11px; }
+  .charter-field .cflabel { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--faint); margin-bottom: 4px; }
+  .charter-field .cfval { font-size: 14px; color: var(--ink); line-height: 1.45; }
+  .charter-tools { display:flex; flex-wrap: wrap; gap: 6px; }
+  .charter-tools .tool { font-family:'JetBrains Mono', monospace; font-size: 12px; color: var(--ink);
+    background: rgba(124,92,237,0.14); border:1px solid var(--panel-edge); padding: 3px 9px; border-radius: 7px; }
+  .charter-status { font-family:'JetBrains Mono', monospace; font-size: 13px; text-transform: uppercase; }
+
+  .agent { cursor: pointer; }
+  .rrow { cursor: pointer; }
+  .rrow.sel, .agent.sel .node { outline: 1px solid var(--violet-c); }
+
+  .feed { flex: 1; display:flex; flex-direction: column; min-height: 0; }
+  .feed-list { flex:1; overflow: hidden; display:flex; flex-direction: column; gap: 7px; }
+  .ev { display:flex; align-items:flex-start; gap: 10px; padding: 8px 11px; border-radius: 9px;
+    background: rgba(20,16,40,0.5); border: 1px solid rgba(150,130,255,0.07); animation: cardin .4s ease; }
+  .ev.cp { border-color: rgba(124,58,237,0.3); }
+  .ev .eactor { font-family:'JetBrains Mono', monospace; font-size: 11.5px; letter-spacing: .5px;
+    color: var(--c, var(--violet-c)); min-width: 104px; text-transform: uppercase; padding-top: 1px; }
+  .ev .esum { font-size: 14px; color: var(--ink); line-height: 1.4; flex: 1; }
+  .ev .eflag { color: var(--violet-c); font-size: 13px; }
+
+  @keyframes corepulse { 0%,100%{ transform: scale(1); opacity:.9 } 50%{ transform: scale(1.08); opacity:1 } }
+  @keyframes spin { to { transform: rotate(360deg) } }
+  @keyframes formspin { to { transform: rotate(360deg) } }
+  @keyframes blink { 0%,60%{ opacity:1 } 61%,100%{ opacity:.25 } }
+  @keyframes flow { to { stroke-dashoffset: -14; } }
+  @keyframes dispatch { 0%{ box-shadow: 0 0 28px rgba(124,58,237,0.55);} 50%{ box-shadow: 0 0 52px rgba(124,58,237,0.95);} 100%{ box-shadow: 0 0 28px rgba(124,58,237,0.55);} }
+  @keyframes spawnflash { 0%{ filter: brightness(1.5); } 60%{ filter: brightness(1.15); } 100%{ filter:brightness(1); } }
+  @keyframes popnew { 0%{ transform: translateX(-50%) translateY(6px) scale(.6); opacity:0 } 100%{ transform: translateX(-50%) translateY(0) scale(1); opacity:1 } }
+  @keyframes cardin { from { transform: translateY(-8px); opacity:0 } to { transform: none; opacity:1 } }
+  @keyframes agentIn {
+    from { transform: translate(-50%,-50%) scale(.6); opacity: 0; }
+    60%  { opacity: 1; }
+    to   { transform: translate(-50%,-50%) scale(1); opacity: 1; }
+  }
+  @keyframes agentOut { from { opacity:1; } to { opacity:0; transform: translate(-50%,-50%) scale(.45); } }
+  @keyframes charterFade { from { opacity:0; transform: translateY(6px); } to { opacity:1; transform:none; } }
+  @keyframes rosterFade { from { opacity:0; } to { opacity:1; } }
+</style>
+</head>
+<body>
+  <div id="scaler">
+    <div id="frame">
+      <header class="head">
+        <div class="brand">
+          <div class="brand-ring"></div>
+          <div>
+            <div class="brand-name">SAGE</div>
+            <div class="brand-sub">Orchestration Engine</div>
+          </div>
+        </div>
+        <div class="goal">
+          <div class="gk">Goal</div>
+          <div class="goal-input">
+            <input id="goalInput" type="text" placeholder="Give SAGE a new goal..." autocomplete="off">
+            <button id="runBtn">Run</button>
+            <button id="docsBtn" title="Feed SAGE a document">+ Docs</button>
+          </div>
+          <div class="gv" id="goalText">connecting...</div>
+        </div>
+        <div class="live">
+          <div class="livedot" id="liveDot">Live</div>
+          <div class="stat"><div class="v" id="st-active">0</div><div class="k">Agents Active</div></div>
+          <div class="stat"><div class="v" id="st-done">0</div><div class="k">Tasks Done</div></div>
+          <div class="stat"><div class="v" id="st-roles">0</div><div class="k">Roles</div></div>
+          <div class="stat"><div class="v" id="st-cycle">0</div><div class="k">Cycle</div></div>
+          <select class="themepick" id="themePick" title="Theme">
+            <option value="midnight">Midnight</option>
+            <option value="contrast">High Contrast</option>
+            <option value="light">Daylight</option>
+            <option value="forest">Forest</option>
+          </select>
+          <button class="pausebtn" id="pauseBtn">Pause</button>
+        </div>
+      </header>
+
+      <section class="godview">
+        <div class="ptitle"><span class="t">Agent Mesh</span><span class="d">// live from activity log</span></div>
+        <div class="gv-stage" id="stage">
+          <svg class="links" id="links" viewBox="0 0 1064 804" preserveAspectRatio="none"></svg>
+          <div class="core" id="core">
+            <div class="halo"></div>
+            <div class="orbit"></div>
+            <div class="ring" id="coreRing"><span class="wm">SAGE</span></div>
+          </div>
+        </div>
+        <div class="timeline">
+          <div class="tl-row">
+            <button class="tl-btn" id="tlReplay" title="Replay mode">&#9654;|</button>
+            <button class="tl-btn" id="tlPlay" title="Play / pause replay">&#9654;</button>
+            <button class="tl-btn" id="tlStepB" title="Step back">&#9664;&#9664;</button>
+            <button class="tl-btn" id="tlStepF" title="Step forward">&#9654;&#9654;</button>
+            <input class="tl-scrub" id="tlScrub" type="range" min="0" max="0" value="0">
+            <span class="tl-mode" id="tlMode">Live</span>
+          </div>
+          <div class="tl-meta">
+            <span class="tl-pos" id="tlPos">0 / 0</span>
+            <span class="tl-now" id="tlNow">streaming live...</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="side">
+        <div class="ptitle"><span class="t">Team</span><span class="d">// roster, charters &amp; activity</span></div>
+        <div class="side-inner">
+          <div class="roster">
+            <h4>Roster<span class="ct" id="rosterCt">0</span></h4>
+            <div id="rosterList"></div>
+          </div>
+          <div class="charter" id="charter">
+            <h4>Agent Charter<span class="chint" id="charterHint">select an agent</span></h4>
+            <div id="charterBody" class="charter-empty">
+              Click any agent node or roster row to see its role, mandate,
+              tools, and boundary.
+            </div>
+          </div>
+          <div class="feed">
+            <h4>Event Feed<span class="ct" id="feedCt">0</span></h4>
+            <div class="feed-list" id="feedList"></div>
+          </div>
+        </div>
+      </section>
+
+      <div id="docsModal" class="modal hidden">
+        <div class="modal-card">
+          <div class="modal-head">Feed SAGE a document</div>
+          <div class="modal-sub">Paste a doc, SOP, tender, or notes. It joins this instance's knowledge base.</div>
+          <input id="docSource" type="text" placeholder="source name (e.g. tender.md)" autocomplete="off">
+          <textarea id="docText" placeholder="Paste document text here..."></textarea>
+          <div class="modal-row">
+            <span id="docMsg" class="modal-msg"></span>
+            <button id="docCancel" class="modal-ghost">Cancel</button>
+            <button id="docSubmit">Ingest</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="vignette"></div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  'use strict';
+  const scaler = document.getElementById('scaler');
+  function fit(){ const s = Math.min(innerWidth/1920, innerHeight/1080); scaler.style.transform = `scale(${s})`; }
+  addEventListener('resize', fit); fit();
+
+  const COL = {
+    violet:['#c8adff','#7c3aed'], emerald:['#6df2b6','#10b981'], sapphire:['#7cbaff','#2563eb'],
+    rose:['#ff97b7','#e11d6b'], teal:['#64e8df','#0ea5a0'], amber:['#ffd58f','#e0820a'],
+  };
+  // Stable color per role name.
+  const ROLE_KEYS = ['violet','emerald','sapphire','teal','rose','amber'];
+  const roleColor = {};
+  function colorFor(role){
+    if(!roleColor[role]){
+      const i = Object.keys(roleColor).length % ROLE_KEYS.length;
+      roleColor[role] = COL[ROLE_KEYS[i]];
+    }
+    return roleColor[role];
+  }
+
+  const CX=532, CY=402;
+  const SLOT_DEF=[[-38,250],[38,250],[-95,252],[95,252],[0,366],[-150,250],[150,250],[-66,376],[66,376],[180,250]];
+  const slots = SLOT_DEF.map(([a,r])=>{ const t=a*Math.PI/180; return {x:CX+r*Math.sin(t), y:CY-r*Math.cos(t), busy:false}; });
+
+  const stage=document.getElementById('stage'), linksSvg=document.getElementById('links');
+  const coreRing=document.getElementById('coreRing');
+  const el=id=>document.getElementById(id);
+
+  const agents = {};   // role -> {node, slot, link}
+  let roles=new Set(), doneCount=0, cycle=0;
+
+  function freeSlot(){ return slots.findIndex(s=>!s.busy); }
+
+  function makeLink(slot,g,instant){
+    const ln=document.createElementNS('http://www.w3.org/2000/svg','line');
+    ln.setAttribute('x1',CX); ln.setAttribute('y1',CY);
+    ln.setAttribute('x2',slot.x); ln.setAttribute('y2',slot.y);
+    ln.setAttribute('class','link'); ln.style.stroke=g[0]; ln.style.color=g[1];
+    linksSvg.appendChild(ln);
+    if(instant){ ln.style.transition='none'; ln.classList.add('on'); }
+    else setTimeout(()=>ln.classList.add('on'),30);
+    return ln;
+  }
+
+  function spawnAgent(role, isNew, instant){
+    if(agents[role]) return;
+    const si=freeSlot(); if(si<0) return;
+    const slot=slots[si]; slot.busy=true;
+    const [c,g]=colorFor(role);
+    const a=document.createElement('div');
+    // In replay (instant) we render the node statically -- no entry animation,
+    // no spawn flash -- so scrubbing doesn't re-flicker the whole mesh.
+    a.className='agent'+(instant?' static':' spawning')+(isNew && !instant?' forming':'');
+    a.style.left=slot.x+'px'; a.style.top=slot.y+'px';
+    a.style.setProperty('--c',c); a.style.setProperty('--g',g);
+    a.innerHTML=((isNew&&!instant)?`<div class="badge-new">+ New role</div>`:'')+
+      `<div class="node"><svg class="pring" viewBox="0 0 76 76">`+
+      `<circle class="ptrack" cx="38" cy="38" r="33"/>`+
+      `<circle class="pbar" cx="38" cy="38" r="33"/></svg><div class="orb"></div></div>`+
+      `<div class="alabel">${role}</div><div class="arole">${instant?'':'spawning'}</div>`;
+    stage.appendChild(a);
+    a.addEventListener('click', ()=> selectAgent(role));
+    const link=makeLink(slot,[c,g],instant);
+    if(!instant){ coreRing.classList.add('busy'); setTimeout(()=>coreRing.classList.remove('busy'),500); }
+    agents[role]={node:a, slot:si, link, c, g};
+    if(!instant) setTimeout(()=>a.classList.remove('spawning','forming'),700);
+  }
+
+  function agentWorking(role, instant){
+    const ag=agents[role]; if(!ag) return;
+    if(instant) return;  // replay sets the final state directly via agentDone
+    ag.node.querySelector('.arole').textContent='working';
+    const bar=ag.node.querySelector('.pbar');
+    bar.style.transition='stroke-dashoffset 900ms ease'; bar.style.strokeDashoffset='40';
+  }
+  function agentDone(role, score){
+    const ag=agents[role]; if(!ag) return;
+    ag.node.classList.add('done');
+    const label = (typeof score==='number') ? `score ${score.toFixed(2)}` : 'done';
+    ag.node.querySelector('.arole').textContent=label;
+    if(typeof score==='number') rosterScore[role]=score;
+    ag.node.querySelector('.pbar').style.strokeDashoffset='0';
+    doneCount++; el('st-done').textContent=doneCount;
+    setRoster();
+  }
+  function agentLifecycle(role, status){
+    const ag=agents[role];
+    if(ag){
+      ag.node.classList.remove('retraining','dead');
+      if(status==='dead') ag.node.classList.add('dead');
+      if(status==='retraining') ag.node.classList.add('retraining');
+      const verdict = status==='dead'?'pruned':(status==='retraining'?'retrain':'kept');
+      ag.node.querySelector('.arole').textContent=verdict;
+    }
+    setRoster();
+  }
+
+  // roster panel
+  const rosterState={}; // role->status
+  const rosterScore={}; // role->score
+  const charters={};    // role->spec {role,purpose,tools,success_criteria,methodology}
+  let selected=null;    // currently inspected role
+  function setRoster(){
+    const list=el('rosterList'); list.innerHTML='';
+    const names=Object.keys(rosterState);
+    el('rosterCt').textContent=names.length;
+    names.forEach(role=>{
+      const st=rosterState[role], [c,g]=colorFor(role);
+      const sc=rosterScore[role];
+      const scTxt = (typeof sc==='number') ? ` ${sc.toFixed(2)}` : '';
+      const row=document.createElement('div');
+      row.className='rrow '+st+(role===selected?' sel':'');
+      row.innerHTML=`<span class="rdot" style="--c:${c};--g:${g}"></span>`+
+        `<span class="rn">${role}</span><span class="rs">${st}${scTxt}</span>`;
+      row.addEventListener('click', ()=> selectAgent(role));
+      list.appendChild(row);
+    });
+  }
+
+  // -------- agent charter --------
+  function selectAgent(role){
+    selected=role;
+    document.querySelectorAll('.agent.sel').forEach(a=>a.classList.remove('sel'));
+    const ag=agents[role]; if(ag) ag.node.classList.add('sel');  // ag.node is the .agent div
+    renderCharter(role);
+    setRoster();
+  }
+  function renderCharter(role){
+    const spec=charters[role];
+    const body=el('charterBody');
+    // brief cross-fade on a real click; skip during replay so scrubbing is calm
+    if(!replay){ body.style.animation='none'; void body.offsetWidth; body.style.animation='charterFade .32s ease'; }
+    el('charterHint').textContent=role;
+    if(!spec){
+      body.className='charter-empty';
+      body.textContent=`No charter recorded yet for ${role}.`;
+      return;
+    }
+    const [c,g]=colorFor(role);
+    const st=rosterState[role]||'pending';
+    const sc=rosterScore[role];
+    const tools=(spec.tools&&spec.tools.length)?spec.tools:['(none)'];
+    body.className='';
+    body.innerHTML=
+      `<div class="charter-head">`+
+        `<span class="cdot" style="--c:${c};--g:${g}"></span>`+
+        `<span class="cname">${role}</span>`+
+        (spec.methodology?`<span class="cmeth">${spec.methodology}</span>`:'')+
+      `</div>`+
+      `<div class="charter-field"><div class="cflabel">Mandate</div>`+
+        `<div class="cfval">${esc(spec.purpose||'-')}</div></div>`+
+      `<div class="charter-field"><div class="cflabel">Boundary &middot; done when</div>`+
+        `<div class="cfval">${esc(spec.success_criteria||'-')}</div></div>`+
+      `<div class="charter-field"><div class="cflabel">Tools</div>`+
+        `<div class="charter-tools">${tools.map(t=>`<span class="tool">${esc(t)}</span>`).join('')}</div></div>`+
+      `<div class="charter-field"><div class="cflabel">Status</div>`+
+        `<div class="charter-status" style="color:${st==='dead'?'var(--rose-c)':st==='retraining'?'var(--amber-c)':'var(--emerald-c)'}">`+
+        `${st}${typeof sc==='number'?' &middot; score '+sc.toFixed(2):''}</div></div>`;
+  }
+  function esc(s){ return String(s).replace(/</g,'&lt;'); }
+
+  // event feed
+  function addEvent(ev){
+    const list=el('feedList');
+    const role=(ev.actor||'').replace(/^agent:/,'');
+    const [c]=colorFor(role!==ev.actor?role:'_sys');
+    const row=document.createElement('div');
+    row.className='ev'+(ev.checkpoint?' cp':'')+(replay?' no-anim':'');
+    row.style.setProperty('--c', ev.actor && ev.actor.startsWith('agent:')?c:'var(--violet-c)');
+    row.innerHTML=`<span class="eactor">${ev.actor||''}</span>`+
+      `<span class="esum">${(ev.summary||'').replace(/</g,'&lt;')}</span>`+
+      (ev.checkpoint?`<span class="eflag">&#9670;</span>`:'');
+    list.prepend(row);
+    while(list.children.length>11) list.lastElementChild.remove();
+    const n=(+el('feedCt').textContent||0)+1; el('feedCt').textContent=n;
+  }
+
+  // -------- timeline / replay state --------
+  const EVENTS = [];        // every event seen, in order -- the replay tape
+  let replay = false;       // are we scrubbing history instead of live?
+  let playTimer = null;
+
+  // -------- interpret engine events --------
+  // `instant` skips the cosmetic setTimeouts so replay rebuilds immediately.
+  function handle(ev, instant){
+    if(!replay && !instant){ EVENTS.push(ev); refreshScrub(); }
+    addEvent(ev);
+    const action=ev.action, role=(ev.actor||'').replace(/^agent:/,'');
+    if(action==='cycle_started'){ cycle++; el('st-cycle').textContent=cycle; }
+    else if(action==='architected'){
+      const specs=(ev.payload&&ev.payload.specs)||[];
+      el('st-roles').textContent=specs.length;
+      // Capture each agent's charter so we can show its mandate & boundary.
+      specs.forEach(s=>{ if(s && s.role) charters[s.role]=s; });
+      if(selected && charters[selected]) renderCharter(selected);
+    }
+    else if(action==='grew_role'){
+      const r=ev.payload&&ev.payload.role;
+      if(r){ rosterState[r]='alive'; spawnAgent(r,true,instant); setRoster(); }
+    }
+    else if(action==='spawned'){
+      const r=ev.payload&&ev.payload.role;
+      if(r){ rosterState[r]=rosterState[r]||'alive'; spawnAgent(r,false,instant); setRoster();
+             el('st-active').textContent=Object.keys(agents).length; }
+    }
+    else if(action==='worked'){
+      const score = ev.payload && ev.payload.score;
+      if(role) agentWorking(role, instant);
+      if(instant){ agentDone(role, score); } else { agentDoneSoon(role, score); }
+    }
+    else if(action==='lifecycle'){
+      const r=ev.payload&&ev.payload.role, st=ev.payload&&ev.payload.status;
+      if(r){ rosterState[r]=st; agentLifecycle(r,st); }
+    }
+    else if(action==='retrained'){
+      const r=ev.payload&&ev.payload.role;
+      const after=ev.payload&&ev.payload.after, rec=ev.payload&&ev.payload.recovered;
+      if(r){
+        rosterScore[r]=after;
+        rosterState[r]= rec ? 'alive' : 'retraining';
+        const ag=agents[r];
+        if(ag){
+          ag.node.classList.remove('dead','retraining');
+          if(rec) ag.node.classList.add('done');
+          ag.node.querySelector('.arole').textContent =
+            (rec?'recovered ':'still weak ') + (typeof after==='number'?after.toFixed(2):'');
+        }
+        setRoster();
+      }
+    }
+    else if(action==='learned'){
+      if(instant){ resetForNextCycle(true); }
+      else { setTimeout(resetForNextCycle, 1400); }
+    }
+    else if(action==='finished'){ el('liveDot').textContent='Complete'; setRunUI(false); }
+    else if(action==='error'){ el('liveDot').textContent='Error'; setRunUI(false); }
+  }
+  function agentDoneSoon(role, score){ setTimeout(()=>agentDone(role, score), 500); }
+
+  // -------- new-run controls (drive SAGE from the browser) --------
+  function setRunUI(running){
+    el('goalInput').disabled = running;
+    el('runBtn').disabled = running;
+    el('runBtn').textContent = running ? 'Running...' : 'Run';
+  }
+  async function submitGoal(){
+    const goal = el('goalInput').value.trim();
+    if(!goal) return;
+    setRunUI(true);
+    if(replay) setReplay(false);     // snap back to live for the new run
+    clearAll(true);                  // fade the prior run's board out
+    el('goalText').textContent = goal;
+    el('liveDot').textContent = 'Live'; el('liveDot').classList.remove('paused');
+    try{
+      const r = await fetch('/run', {method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({goal})});
+      const res = await r.json();
+      if(!res.ok){ el('liveDot').textContent = res.error || 'busy'; setRunUI(false); }
+      else { el('goalInput').value=''; }
+    }catch(_){ setRunUI(false); }
+  }
+
+  function resetForNextCycle(now){
+    // retract all agents so the next cycle re-spawns cleanly
+    Object.values(agents).forEach(ag=>{
+      if(now){ ag.link.remove(); ag.node.remove(); }
+      else {
+        ag.link.classList.remove('on'); setTimeout(()=>ag.link.remove(),500);
+        ag.node.classList.add('out'); setTimeout(()=>ag.node.remove(),450);
+      }
+      slots[ag.slot].busy=false;
+    });
+    for(const k in agents) delete agents[k];
+    el('st-active').textContent=0;
+  }
+
+  // -------- control plane client --------
+  const btn=el('pauseBtn'); let paused=false;
+  btn.addEventListener('click', async ()=>{
+    paused=!paused;
+    await fetch(paused?'/pause':'/resume',{method:'POST'});
+    btn.textContent=paused?'Resume':'Pause';
+    btn.classList.toggle('resumed', paused);
+    const dot=el('liveDot');
+    dot.textContent=paused?'Paused':'Live';
+    dot.classList.toggle('paused', paused);
+  });
+
+  // -------- replay machinery --------
+  // `animated` fades agents out before wiping (used for a live new-run);
+  // replay rebuilds pass animated=false so scrubbing stays instant.
+  function clearAll(animated){
+    const old = Object.values(agents);
+    if(animated && old.length){
+      old.forEach(ag=>{
+        ag.link.classList.remove('on'); setTimeout(()=>ag.link.remove(),450);
+        ag.node.classList.add('out'); setTimeout(()=>ag.node.remove(),440);
+      });
+    } else {
+      old.forEach(ag=>{ ag.link.remove(); ag.node.remove(); });
+    }
+    for(const k in agents) delete agents[k];
+    slots.forEach(s=>s.busy=false);
+    for(const k in rosterState) delete rosterState[k];
+    for(const k in rosterScore) delete rosterScore[k];
+    doneCount=0; cycle=0;
+    el('st-active').textContent=0; el('st-done').textContent=0;
+    el('st-roles').textContent=0; el('st-cycle').textContent=0;
+    el('feedList').innerHTML=''; el('feedCt').textContent=0;
+    setRoster();
+  }
+  function rebuildTo(n){
+    clearAll();
+    for(let i=0;i<n && i<EVENTS.length;i++) handle(EVENTS[i], true);
+    const cur = EVENTS[Math.max(0,n-1)];
+    el('tlPos').textContent = `${n} / ${EVENTS.length}`;
+    el('tlNow').textContent = cur ? `${cur.actor||''}  ${cur.summary||''}` : '(start)';
+    const scrub=el('tlScrub'); scrub.value=n;
+    scrub.style.setProperty('--pct', (EVENTS.length? (n/EVENTS.length*100):0)+'%');
+  }
+  function refreshScrub(){
+    const scrub=el('tlScrub');
+    if(!replay){ scrub.max=EVENTS.length; scrub.value=EVENTS.length;
+      el('tlPos').textContent=`${EVENTS.length} / ${EVENTS.length}`;
+      scrub.style.setProperty('--pct','100%'); }
+    else scrub.max=EVENTS.length;
+  }
+  function setReplay(on){
+    replay=on;
+    el('tlReplay').classList.toggle('active', on);
+    el('tlMode').textContent = on?'Replay':'Live';
+    el('tlMode').classList.toggle('replay', on);
+    el('tlNow').textContent = on ? 'scrub to replay history' : 'streaming live...';
+    if(!on){ stopPlay(); rebuildLive(); }
+  }
+  function rebuildLive(){ // jump back to the live head
+    replay=false; el('tlMode').textContent='Live'; el('tlMode').classList.remove('replay');
+    clearAll(); for(const ev of EVENTS) handle(ev, true); refreshScrub();
+  }
+  function stopPlay(){ if(playTimer){ clearInterval(playTimer); playTimer=null; el('tlPlay').classList.remove('active'); } }
+  function startPlay(){
+    if(!replay) setReplay(true);
+    el('tlPlay').classList.add('active');
+    let n=Math.min(+el('tlScrub').value, EVENTS.length);
+    if(n>=EVENTS.length) n=0;
+    playTimer=setInterval(()=>{
+      n++; rebuildTo(n);
+      if(n>=EVENTS.length) stopPlay();
+    }, 320);
+  }
+
+  // -------- timeline controls --------
+  el('tlReplay').addEventListener('click', ()=> setReplay(!replay));
+  el('tlPlay').addEventListener('click', ()=> playTimer ? stopPlay() : startPlay());
+  el('tlStepB').addEventListener('click', ()=>{ if(!replay) setReplay(true); stopPlay(); rebuildTo(Math.max(0,(+el('tlScrub').value)-1)); });
+  el('tlStepF').addEventListener('click', ()=>{ if(!replay) setReplay(true); stopPlay(); rebuildTo(Math.min(EVENTS.length,(+el('tlScrub').value)+1)); });
+  el('tlScrub').addEventListener('input', ()=>{ if(!replay) setReplay(true); stopPlay(); rebuildTo(+el('tlScrub').value); });
+
+  // -------- theme --------
+  function applyTheme(name){
+    // "midnight" is the :root default (no attribute needed)
+    if(name && name!=='midnight') document.documentElement.setAttribute('data-theme', name);
+    else document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('sage-theme', name); }catch(_){}
+    const pick=el('themePick'); if(pick) pick.value=name;
+  }
+  (function initTheme(){
+    let saved='midnight';
+    try{ saved = localStorage.getItem('sage-theme') || 'midnight'; }catch(_){}
+    applyTheme(saved);
+    el('themePick').addEventListener('change', e=> applyTheme(e.target.value));
+  })();
+
+  // -------- new-run wiring --------
+  el('runBtn').addEventListener('click', submitGoal);
+  el('goalInput').addEventListener('keydown', e=>{ if(e.key==='Enter') submitGoal(); });
+
+  // -------- doc ingest wiring --------
+  function openDocs(){ el('docsModal').classList.remove('hidden'); el('docMsg').textContent=''; el('docText').focus(); }
+  function closeDocs(){ el('docsModal').classList.add('hidden'); }
+  el('docsBtn').addEventListener('click', openDocs);
+  el('docCancel').addEventListener('click', closeDocs);
+  el('docsModal').addEventListener('click', e=>{ if(e.target===el('docsModal')) closeDocs(); });
+  el('docSubmit').addEventListener('click', async ()=>{
+    const text=el('docText').value.trim();
+    const source=el('docSource').value.trim() || 'pasted';
+    if(!text){ el('docMsg').textContent='paste some text first'; return; }
+    el('docMsg').textContent='ingesting...';
+    try{
+      const r=await fetch('/ingest',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({source,text})});
+      const res=await r.json();
+      if(res.ok){ el('docMsg').textContent=`added ${res.chunks} chunks`;
+        el('docText').value=''; el('docSource').value='';
+        setTimeout(closeDocs, 800); }
+      else el('docMsg').textContent=res.error||'failed';
+    }catch(_){ el('docMsg').textContent='request failed'; }
+  });
+
+  // -------- boot --------
+  fetch('/meta').then(r=>r.json()).then(m=>{
+    el('goalText').textContent=m.goal;
+    setRunUI(!!m.running);
+  }).catch(()=>{});
+  // The SSE stream replays the full history on connect (the hub buffers it),
+  // then continues live -- so EVENTS fills from this one source. While in
+  // replay mode, incoming live events are tucked onto the tape without
+  // disturbing what you're scrubbing.
+  const es=new EventSource('/events');
+  es.onmessage=e=>{
+    try{
+      const ev=JSON.parse(e.data);
+      if(replay){ EVENTS.push(ev); refreshScrub(); }
+      else { handle(ev); }
+    }catch(_){}
+  };
+  setRoster();
+})();
+</script>
+</body>
+</html>

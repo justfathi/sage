@@ -10,3 +10,10 @@ dist/
 build/
 .idea/
 .vscode/
+
+# SAGE runtime artifacts
+*.db
+sage_state.db
+.pytest_cache/
+*.egg-info/
+_*.txt
