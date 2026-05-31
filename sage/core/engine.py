@@ -175,7 +175,7 @@ class SageEngine:
             self._emit(f"agent:{agent.role}", "worked",
                        f"{agent.role}: {output[:90]}",
                        payload={"agent_id": agent.agent_id, "score": agent.score,
-                                "output": output},
+                                "output": output, "tools_used": agent.tools_used},
                        parent_id=arch_event.event_id, checkpoint=True)
 
         # (4) learn + gardener

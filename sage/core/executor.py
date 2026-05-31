@@ -10,6 +10,7 @@ from typing import List, Optional
 
 from ..providers.base import Provider
 from . import evaluator as evaluator_mod
+from . import tools as tools_mod
 from .models import Agent, AgentSpec, AgentStatus
 from .memory import KnowledgeBase
 
@@ -25,12 +26,23 @@ AGENT_SYSTEM = (
 
 
 def run_agent(provider: Provider, agent: Agent, goal: str, kb: KnowledgeBase,
-              peer_context: str = "") -> str:
+              peer_context: str = "", artifacts: Optional[dict] = None) -> str:
     query = f"{agent.spec.role} {agent.spec.purpose} {goal}"
     context = kb.context_for(query, k=4)
     if peer_context:
         # Hand off prior agents' artifacts so work builds on work.
         context = f"{context}\n\n--- UPSTREAM AGENT OUTPUTS ---\n{peer_context}"
+
+    # Actually invoke the agent's declared tools -- declared capability becomes
+    # used capability. Their results are folded into the reasoning context.
+    tctx = tools_mod.ToolContext(kb=kb, goal=goal, role=agent.spec.role,
+                                 purpose=agent.spec.purpose,
+                                 artifacts=artifacts if artifacts is not None else {})
+    tool_results = tools_mod.run_tools(agent.spec.tools, tctx)
+    agent.tools_used = list(agent.spec.tools or [])
+    if tool_results:
+        context = f"{context}\n\n--- TOOL RESULTS ---\n" + "\n".join(tool_results)
+
     task = (
         f"Perform your role.\nrole: {agent.spec.role}\n"
         f"purpose: {agent.spec.purpose}\n"
@@ -88,11 +100,13 @@ def run_team(provider: Provider, agents: List[Agent], goal: str, kb: KnowledgeBa
     starting cold from the goal.
     """
     done: List[str] = []
+    artifacts: dict = {}   # shared tool workspace for the whole team
     for agent in agents:
         if agent.status != AgentStatus.ALIVE:
             continue
         peer = "\n\n".join(done[-3:]) if (handoff and done) else ""
-        output = run_agent(provider, agent, goal, kb, peer_context=peer)
+        output = run_agent(provider, agent, goal, kb, peer_context=peer,
+                           artifacts=artifacts)
         # Keep a trimmed handoff note so context stays bounded.
         done.append(f"[{agent.spec.role}] {output[:600]}")
         yield agent, output

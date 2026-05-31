@@ -275,6 +275,8 @@
   .charter-tools { display:flex; flex-wrap: wrap; gap: 6px; }
   .charter-tools .tool { font-family:'JetBrains Mono', monospace; font-size: 12px; color: var(--ink);
     background: rgba(124,92,237,0.14); border:1px solid var(--panel-edge); padding: 3px 9px; border-radius: 7px; }
+  .charter-tools .tool.on { color: var(--emerald-c); border-color: var(--emerald-g);
+    background: rgba(16,185,129,0.12); }
   .charter-status { font-family:'JetBrains Mono', monospace; font-size: 13px; text-transform: uppercase; }
 
   .agent { cursor: pointer; }
@@ -514,6 +516,7 @@
   const rosterState={}; // role->status
   const rosterScore={}; // role->score
   const charters={};    // role->spec {role,purpose,tools,success_criteria,methodology}
+  const toolsUsed={};   // role->[tools actually invoked at run time]
   let selected=null;    // currently inspected role
   function setRoster(){
     const list=el('rosterList'); list.innerHTML='';
@@ -555,6 +558,8 @@
     const st=rosterState[role]||'pending';
     const sc=rosterScore[role];
     const tools=(spec.tools&&spec.tools.length)?spec.tools:['(none)'];
+    const used=new Set(toolsUsed[role]||[]);
+    const toolsLabel = used.size ? 'Tools &middot; used' : 'Tools';
     body.className='';
     body.innerHTML=
       `<div class="charter-head">`+
@@ -566,8 +571,8 @@
         `<div class="cfval">${esc(spec.purpose||'-')}</div></div>`+
       `<div class="charter-field"><div class="cflabel">Boundary &middot; done when</div>`+
         `<div class="cfval">${esc(spec.success_criteria||'-')}</div></div>`+
-      `<div class="charter-field"><div class="cflabel">Tools</div>`+
-        `<div class="charter-tools">${tools.map(t=>`<span class="tool">${esc(t)}</span>`).join('')}</div></div>`+
+      `<div class="charter-field"><div class="cflabel">${toolsLabel}</div>`+
+        `<div class="charter-tools">${tools.map(t=>`<span class="tool${used.has(t)?' on':''}">${esc(t)}${used.has(t)?' &check;':''}</span>`).join('')}</div></div>`+
       `<div class="charter-field"><div class="cflabel">Status</div>`+
         `<div class="charter-status" style="color:${st==='dead'?'var(--rose-c)':st==='retraining'?'var(--amber-c)':'var(--emerald-c)'}">`+
         `${st}${typeof sc==='number'?' &middot; score '+sc.toFixed(2):''}</div></div>`;
@@ -620,6 +625,8 @@
     }
     else if(action==='worked'){
       const score = ev.payload && ev.payload.score;
+      const used = ev.payload && ev.payload.tools_used;
+      if(role && used){ toolsUsed[role]=used; if(role===selected) renderCharter(role); }
       if(role) agentWorking(role, instant);
       if(instant){ agentDone(role, score); } else { agentDoneSoon(role, score); }
     }
@@ -718,6 +725,7 @@
     slots.forEach(s=>s.busy=false);
     for(const k in rosterState) delete rosterState[k];
     for(const k in rosterScore) delete rosterScore[k];
+    for(const k in toolsUsed) delete toolsUsed[k];
     doneCount=0; cycle=0;
     el('st-active').textContent=0; el('st-done').textContent=0;
     el('st-roles').textContent=0; el('st-cycle').textContent=0;

@@ -422,3 +422,33 @@ def test_runner_rejects_empty_goal():
     runner = SageRunner(None, "seed goal", 1, "mock", tmp.name)
     assert runner.submit_goal("   ")["ok"] is False
     runner.engine.close()
+
+
+def test_tools_actually_execute():
+    """An agent's declared tools must really run and record what was used."""
+    from sage.core import tools
+    from sage.core.memory import KnowledgeBase
+
+    kb = KnowledgeBase(); kb.ingest_text("doc", "build an api platform with auth")
+    ctx = tools.ToolContext(kb=kb, goal="build an api", role="Builder",
+                            purpose="implement the api")
+    results = tools.run_tools(["read_kb", "write_doc", "run_tests"], ctx)
+    assert len(results) == 3
+    assert any("read_kb:" in r for r in results)
+    assert "Builder.md" in ctx.artifacts          # write_doc produced an artifact
+    # unknown tools are skipped gracefully, never crash
+    assert "nope: (no such tool" in tools.invoke("nope", ctx)
+
+
+def test_agent_records_tools_used():
+    """run_agent should populate agent.tools_used from its spec."""
+    from sage.core import executor
+    from sage.core.models import Agent, AgentSpec
+    from sage.core.memory import KnowledgeBase
+    from sage.providers.mock import MockProvider
+
+    kb = KnowledgeBase(); kb.ingest_text("x", "build an api platform")
+    agent = Agent(spec=AgentSpec(role="Builder", purpose="implement",
+                                 tools=["read_kb", "write_file"]))
+    executor.run_agent(MockProvider(), agent, "build an api", kb, artifacts={})
+    assert agent.tools_used == ["read_kb", "write_file"]

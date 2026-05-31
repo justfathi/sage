@@ -63,6 +63,8 @@ class Agent:
     # Lightweight performance signal the Gardener reasons over.
     score: float = 0.0
     notes: str = ""
+    # Tools the agent actually invoked during its run.
+    tools_used: List[str] = field(default_factory=list)
 
     @property
     def role(self) -> str:
@@ -75,6 +77,7 @@ class Agent:
             "score": self.score,
             "notes": self.notes,
             "outputs": self.outputs,
+            "tools_used": self.tools_used,
         }
         d.update(self.spec.to_dict())
         return d
