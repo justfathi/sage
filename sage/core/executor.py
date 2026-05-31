@@ -91,22 +91,59 @@ def retrain_agent(provider: Provider, agent: Agent, goal: str,
     return output
 
 
+def order_by_dependencies(agents: List[Agent]) -> List[Agent]:
+    """Topologically sort agents so each runs after roles it depends on.
+
+    Falls back to the architect's original order for any agent whose deps are
+    unknown or cyclic -- ordering is a helpful hint, never a hard failure.
+    """
+    by_role = {a.role: a for a in agents}
+    ordered: List[Agent] = []
+    placed = set()
+
+    def place(agent, trail):
+        if agent.role in placed or agent.role in trail:
+            return
+        trail = trail | {agent.role}
+        for dep in agent.spec.depends_on:
+            dep_agent = by_role.get(dep)
+            if dep_agent is not None:
+                place(dep_agent, trail)
+        if agent.role not in placed:
+            ordered.append(agent)
+            placed.add(agent.role)
+
+    for a in agents:
+        place(a, set())
+    return ordered
+
+
 def run_team(provider: Provider, agents: List[Agent], goal: str, kb: KnowledgeBase,
              handoff: bool = True):
     """Yield (agent, output) as each agent completes -- a step boundary.
 
-    When `handoff` is on, each agent sees a short digest of the artifacts
-    produced by the agents before it, so work composes instead of every agent
-    starting cold from the goal.
+    Agents run in dependency order. Each agent receives the artifacts of the
+    roles it depends on (or, absent declared deps, a digest of recent work),
+    so work composes instead of every agent starting cold from the goal.
     """
-    done: List[str] = []
-    artifacts: dict = {}   # shared tool workspace for the whole team
-    for agent in agents:
+    artifacts: dict = {}            # shared tool workspace for the whole team
+    outputs_by_role: dict = {}      # role -> its output, for dependency handoff
+    recent: List[str] = []
+    for agent in order_by_dependencies(agents):
         if agent.status != AgentStatus.ALIVE:
             continue
-        peer = "\n\n".join(done[-3:]) if (handoff and done) else ""
+        if not handoff:
+            peer = ""
+        elif agent.spec.depends_on:
+            # Hand off exactly the artifacts this agent declared it needs.
+            peer = "\n\n".join(
+                f"[{dep}] {outputs_by_role[dep][:600]}"
+                for dep in agent.spec.depends_on if dep in outputs_by_role
+            )
+        else:
+            peer = "\n\n".join(recent[-3:])
         output = run_agent(provider, agent, goal, kb, peer_context=peer,
                            artifacts=artifacts)
-        # Keep a trimmed handoff note so context stays bounded.
-        done.append(f"[{agent.spec.role}] {output[:600]}")
+        outputs_by_role[agent.role] = output
+        recent.append(f"[{agent.spec.role}] {output[:600]}")
         yield agent, output

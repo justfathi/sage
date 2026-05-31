@@ -77,6 +77,7 @@ def design_team(
                 tools=list(item.get("tools", [])),
                 success_criteria=str(item.get("success_criteria", "")),
                 methodology=item.get("methodology") or (methodology.name if methodology else None),
+                depends_on=list(item.get("depends_on", [])),
             )
         )
 

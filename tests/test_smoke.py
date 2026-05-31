@@ -452,3 +452,35 @@ def test_agent_records_tools_used():
                                  tools=["read_kb", "write_file"]))
     executor.run_agent(MockProvider(), agent, "build an api", kb, artifacts={})
     assert agent.tools_used == ["read_kb", "write_file"]
+
+
+def test_dependency_ordering_topo_sorts():
+    """Agents must run after the roles they depend on; cycles don't crash."""
+    from sage.core.executor import order_by_dependencies
+    from sage.core.models import Agent, AgentSpec
+
+    a = Agent(spec=AgentSpec(role="Analyst", purpose="x"))
+    arch = Agent(spec=AgentSpec(role="Architect", purpose="x", depends_on=["Analyst"]))
+    build = Agent(spec=AgentSpec(role="Builder", purpose="x", depends_on=["Architect"]))
+    # deliberately pass them out of order
+    ordered = [a.role for a in order_by_dependencies([build, arch, a])]
+    assert ordered.index("Analyst") < ordered.index("Architect") < ordered.index("Builder")
+
+    # a cycle must not hang or crash -- all agents still appear once
+    x = Agent(spec=AgentSpec(role="X", purpose="x", depends_on=["Y"]))
+    y = Agent(spec=AgentSpec(role="Y", purpose="x", depends_on=["X"]))
+    out = [a.role for a in order_by_dependencies([x, y])]
+    assert sorted(out) == ["X", "Y"]
+
+
+def test_bmad_runs_in_dependency_order():
+    """The BMAD crew should execute Analyst -> Architect -> Builder -> QA."""
+    engine, _ = _engine()
+    engine.kb.ingest_text("tender", "Rebuild our API and app software platform.")
+    result = engine.run("Rebuild the orders platform API")
+    worked = [e.actor.replace("agent:", "")
+              for e in engine.log.events(result.instance_id) if e.action == "worked"]
+    assert worked.index("Analyst") < worked.index("Architect")
+    assert worked.index("Architect") < worked.index("Builder")
+    assert worked.index("Builder") < worked.index("QA")
+    engine.close()

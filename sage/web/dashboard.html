@@ -571,6 +571,9 @@
         `<div class="cfval">${esc(spec.purpose||'-')}</div></div>`+
       `<div class="charter-field"><div class="cflabel">Boundary &middot; done when</div>`+
         `<div class="cfval">${esc(spec.success_criteria||'-')}</div></div>`+
+      ((spec.depends_on&&spec.depends_on.length)?
+        `<div class="charter-field"><div class="cflabel">Depends on</div>`+
+        `<div class="cfval">${spec.depends_on.map(esc).join(' &rarr; ')}</div></div>`:'')+
       `<div class="charter-field"><div class="cflabel">${toolsLabel}</div>`+
         `<div class="charter-tools">${tools.map(t=>`<span class="tool${used.has(t)?' on':''}">${esc(t)}${used.has(t)?' &check;':''}</span>`).join('')}</div></div>`+
       `<div class="charter-field"><div class="cflabel">Status</div>`+

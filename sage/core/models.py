@@ -47,6 +47,9 @@ class AgentSpec:
     success_criteria: str = ""
     # Set when this role came from a playbook methodology (e.g. "BMAD").
     methodology: Optional[str] = None
+    # Roles this agent depends on -- it runs only after they complete, and
+    # receives their artifacts as upstream context.
+    depends_on: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
