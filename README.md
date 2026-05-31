@@ -6,6 +6,7 @@
 
 **Feed it your company. It grows its own team.**
 
+[![CI](https://github.com/justfathi/sage/actions/workflows/ci.yml/badge.svg)](https://github.com/justfathi/sage/actions/workflows/ci.yml)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 ![Status: Concept](https://img.shields.io/badge/status-early%20concept-orange)
 ![Model-agnostic](https://img.shields.io/badge/models-agnostic-7c3aed)

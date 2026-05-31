@@ -121,7 +121,22 @@ sage run --docs demo/sample_company --goal "Rebuild our API"
 
 ## Known MVP simplifications
 
-- Retrieval is keyword-overlap, not a real vector DB (interface is ready for one).
+- Retrieval is in-memory TF-IDF + cosine (real vector-space search, pure
+  stdlib); a hosted embedding model or external vector DB drops in behind
+  `KnowledgeBase.search()` without touching callers.
 - Agents "work" via a single reasoning call; no real tools are executed yet.
 - Resume reconstructs state from the log but re-runs from the goal; full
   mid-run re-entry is a next step.
+
+## Regenerating the public demo
+
+The GitHub Pages demo (`docs/index.html`) is generated from the live
+dashboard so it never drifts:
+
+```bash
+python3 scripts/build_demo.py
+```
+
+This captures a real mock-provider run in-process, embeds its event timeline,
+and swaps the server calls for an in-browser player. Re-run it after changing
+`sage/web/dashboard.html`.
